@@ -20,7 +20,11 @@ WITH Base AS (
         elra.update_date AS attempt_update_date,
         ROW_NUMBER() OVER (PARTITION BY el.etl_id, elra.run_id ORDER BY elra.attempt_id DESC) AS rn,
         MAX(CASE WHEN elra.status = 'SUCCESS' THEN elra.update_date END) OVER (PARTITION BY el.etl_id) AS last_success_date,
-        MAX(CASE WHEN elra.status = 'FAILED' THEN elra.update_date END) OVER (PARTITION BY el.etl_id) AS last_failed_date
+        MAX(CASE WHEN elra.status = 'FAILED' THEN elra.update_date END) OVER (PARTITION BY el.etl_id) AS last_failed_date,
+        CASE 
+            WHEN MAX(elra.update_date) OVER (PARTITION BY el.etl_id) < TRUNC(SYSDATE) - 3 THEN 'YES'
+            ELSE 'NO'
+        END AS is_inactive_for_3_days
     FROM omnia_op_meta_prod_owner.etl_load_runs elr
     JOIN omnia_op_meta_prod_owner.etl_load_run_attempts elra ON elra.run_id = elr.run_id
     JOIN omnia_op_meta_prod_owner.etl_loads el ON el.etl_id = el.etl_id
@@ -55,6 +59,7 @@ SELECT
     b.execution_time,
     b.last_success_date,
     b.last_failed_date,
+    b.is_inactive_for_3_days,
     ms.data_location,
     ms.observed,
     ms.expected,
@@ -86,6 +91,7 @@ GROUP BY
     b.execution_time,
     b.last_success_date,
     b.last_failed_date,
+    b.is_inactive_for_3_days,
     ms.data_location,
     ms.observed,
     ms.expected
