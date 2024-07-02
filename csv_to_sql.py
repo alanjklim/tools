@@ -1,29 +1,48 @@
 import pandas as pd
 
-def csv_to_oracle_sql(csv_file_path):
-    # Read the CSV file into a DataFrame
-    df = pd.read_csv(csv_file_path)
+def detect_data_type(value):
+    """Detects the SQL-friendly data type of a value."""
+    if pd.isna(value):
+        return "NULL"
+    elif isinstance(value, int):
+        return str(value)
+    elif isinstance(value, float):
+        return str(value)
+    elif isinstance(value, pd.Timestamp):
+        return f"TO_DATE('{value}', 'YYYY-MM-DD HH24:MI:SS')"
+    else:
+        return f"'{str(value).replace('\'', '\'\'')}'"
+
+def csv_to_cte_sql(csv_file_path, cte_name='data_cte', chunk_size=1000):
+    """Converts a CSV file into an Oracle SQL CTE with dynamic data type handling and chunk processing."""
+    cte_sql = f"WITH {cte_name} AS ("
     
-    # Extract column names
-    columns = df.columns.tolist()
+    # Read the CSV file in chunks
+    chunks = pd.read_csv(csv_file_path, chunksize=chunk_size)
     
-    # Prepare the base SQL template
-    base_sql = "SELECT {} FROM DUAL"
-    
-    # Initialize a list to hold individual SELECT statements
     select_statements = []
-    
-    # Loop through each row in the DataFrame and create a SELECT statement
-    for index, row in df.iterrows():
-        values = ', '.join([f"'{str(value)}' AS {col}" for col, value in zip(columns, row)])
-        select_statements.append(base_sql.format(values))
+    for chunk in chunks:
+        columns = chunk.columns.tolist()
+        for index, row in chunk.iterrows():
+            values = ', '.join([f"{detect_data_type(value)} AS {col}" for col, value in zip(columns, row)])
+            select_statements.append(f"SELECT {values} FROM DUAL")
     
     # Combine all SELECT statements with UNION ALL
     union_all_sql = " UNION ALL ".join(select_statements)
     
-    return union_all_sql
+    cte_sql += union_all_sql + ")"
+    return cte_sql
 
 # Example usage
 csv_file_path = 'data.csv'
-sql_query = csv_to_oracle_sql(csv_file_path)
-print(sql_query)
+cte_sql = csv_to_cte_sql(csv_file_path)
+
+# Example of using the CTE to join with another table
+final_sql = f"""
+{cte_sql}
+SELECT *
+FROM data_cte c
+JOIN other_table o ON c.id = o.id
+"""
+
+print(final_sql)
