@@ -47,12 +47,13 @@ def generate_join_conditions(columns, other_table_alias='o'):
 columns = pd.read_csv(csv_file_path, nrows=1).columns.tolist()
 join_conditions = generate_join_conditions(columns)
 
-# Example of using the CTE to join with another table
+# Example of using the CTE to join with another table and find non-matching rows
 final_sql = f"""
 {cte_sql}
-SELECT *
+SELECT c.*, o.*
 FROM data_cte c
-JOIN employees o ON {join_conditions}
+LEFT JOIN employees o ON {join_conditions}
+WHERE o.id IS NULL
 """
 
 print(final_sql)
