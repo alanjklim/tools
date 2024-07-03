@@ -37,12 +37,22 @@ def csv_to_cte_sql(csv_file_path, cte_name='data_cte', chunk_size=1000):
 csv_file_path = 'data.csv'
 cte_sql = csv_to_cte_sql(csv_file_path)
 
+# Generate JOIN conditions for each column
+def generate_join_conditions(columns, other_table_alias='o'):
+    """Generates join conditions for each column."""
+    join_conditions = [f"c.{col} = {other_table_alias}.{col}" for col in columns]
+    return ' AND '.join(join_conditions)
+
+# Read the first chunk to get the column names
+columns = pd.read_csv(csv_file_path, nrows=1).columns.tolist()
+join_conditions = generate_join_conditions(columns)
+
 # Example of using the CTE to join with another table
 final_sql = f"""
 {cte_sql}
 SELECT *
 FROM data_cte c
-JOIN other_table o ON c.id = o.id
+JOIN employees o ON {join_conditions}
 """
 
 print(final_sql)
