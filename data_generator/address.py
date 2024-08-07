@@ -6,10 +6,10 @@ import os
 fake = Faker('en_AU')
 
 # Read the customer data from customers_with_addresses.csv
-customers_df = pd.read_csv('data/customers_with_addresses.csv')
+customers_df = pd.read_csv('data/customers.csv')
 
 
-def create_address_row(customer_id, address_type, address, suburb, state, postcode):
+def create_address(customer_id, address_type, address, suburb, state, postcode):
     return {
         'customer_id': customer_id,
         'address_type': address_type,
@@ -29,7 +29,7 @@ def create_address_row(customer_id, address_type, address, suburb, state, postco
     }
 
 
-def generate_address_rows(customers_df):
+def generate_addresses(customers_df):
     addresses = []
 
     for _, customer in customers_df.iterrows():
@@ -37,7 +37,7 @@ def generate_address_rows(customers_df):
 
         # Add Residential address row if available
         if pd.notna(customer['residential_address']):
-            addresses.append(create_address_row(
+            addresses.append(create_address(
                 customer_id,
                 'Residential',
                 customer['residential_address'],
@@ -48,7 +48,7 @@ def generate_address_rows(customers_df):
 
         # Add Business address row if available
         if pd.notna(customer['business_address']):
-            addresses.append(create_address_row(
+            addresses.append(create_address(
                 customer_id,
                 'Business',
                 customer['business_address'],
@@ -59,7 +59,7 @@ def generate_address_rows(customers_df):
 
         # Add PO Box address row if available
         if pd.notna(customer['po_address']):
-            addresses.append(create_address_row(
+            addresses.append(create_address(
                 customer_id,
                 'PO Box',
                 customer['po_address'],
@@ -72,7 +72,7 @@ def generate_address_rows(customers_df):
 
 
 # Generate the addresses as rows
-address_rows = generate_address_rows(customers_df)
+address_rows = generate_addresses(customers_df)
 
 # Create a DataFrame for the addresses
 address_df = pd.DataFrame(address_rows).sort_values(by='customer_id')
