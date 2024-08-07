@@ -1,86 +1,87 @@
-import pandas as pd
 from faker import Faker
+import pandas as pd
 import random
+import os
 
-fake = Faker()
+fake = Faker('en_AU')
 
-# Load customer dimension data
-customers_dimension_df = pd.read_csv('/mnt/data/customers_dimension_table.csv')
+# Read the customer data from customers_with_addresses.csv
+customers_df = pd.read_csv('data/customers_with_addresses.csv')
 
-def generate_address_data(customers_df, num_records):
-    data = []
-    
-    for _ in range(num_records):
-        cust_addr_skey = fake.unique.random_int(min=1, max=100000)
-        customer_id = random.choice(customers_df['customer_id'].tolist())
-        address_type = random.choice(['residential', 'po box', 'personal', 'business'])
-        address_effective_date = fake.date_this_century().strftime('%d/%m/%Y')
-        full_address = fake.address().replace("\n", ", ")
-        address = fake.street_address()
-        suburb = fake.city()
-        state = fake.state_abbr()
-        postcode = fake.postcode()
-        res_addr_indicator = random.choice(['y', 'n'])
-        country_of_residence = 'Australia'
-        valid_from_date = fake.date_this_century().strftime('%d/%m/%Y')
-        valid_to_date = fake.date_this_century().strftime('%d/%m/%Y')
-        effective_status = random.choice(['active', 'inactive', 'deleted'])
-        mosaic_code = fake.lexify(text='????')
-        geolocation_id = fake.uuid4()
-        geolocation_lat = fake.latitude()
-        geolocation_long = fake.longitude()
-        
-        data.append([
-            cust_addr_skey,
-            customer_id,
-            address_type,
-            address_effective_date,
-            full_address,
-            address,
-            suburb,
-            state,
-            postcode,
-            res_addr_indicator,
-            country_of_residence,
-            valid_from_date,
-            valid_to_date,
-            effective_status,
-            mosaic_code,
-            geolocation_id,
-            geolocation_lat,
-            geolocation_long
-        ])
-    
-    columns = [
-        'cust_addr_skey',
-        'customer_id',
-        'address_type',
-        'address_effective_date',
-        'full_address',
-        'address',
-        'suburb',
-        'state',
-        'postcode',
-        'res_addr_indicator',
-        'country_of_residence',
-        'valid_from_date',
-        'valid_to_date',
-        'effective_status',
-        'mosaic_code',
-        'geolocation_id',
-        'geolocation_lat',
-        'geolocation_long'
-    ]
-    
-    return pd.DataFrame(data, columns=columns)
 
-# Generate address dimension data
-df_addresses = generate_address_data(customers_dimension_df, 100)
+def create_address_row(customer_id, address_type, address, suburb, state, postcode):
+    return {
+        'customer_id': customer_id,
+        'address_type': address_type,
+        'full_address': f"{address}, {suburb}, {state} {postcode}",
+        'address': address,
+        'suburb': suburb,
+        'state': state,
+        'postcode': postcode,
+        'country_of_residence': 'Australia',
+        'res_addr_indicator': 'Y' if address_type == 'Residential' else 'N',
+        'valid_from_date': fake.date_this_century().strftime('%d/%m/%Y'),
+        'valid_to_date': fake.date_this_century().strftime('%d/%m/%Y'),
+        'effective_status': random.choice(['Active', 'Inactive', 'Deleted']),
+        'mosaic_code': fake.lexify(text='????'),
+        'geolocation_lat': fake.latitude(),
+        'geolocation_long': fake.longitude()
+    }
+
+
+def generate_address_rows(customers_df):
+    addresses = []
+
+    for _, customer in customers_df.iterrows():
+        customer_id = customer['customer_id']
+
+        # Add Residential address row if available
+        if pd.notna(customer['residential_address']):
+            addresses.append(create_address_row(
+                customer_id,
+                'Residential',
+                customer['residential_address'],
+                customer['residential_suburb'],
+                customer['residential_state'],
+                customer['residential_postcode']
+            ))
+
+        # Add Business address row if available
+        if pd.notna(customer['business_address']):
+            addresses.append(create_address_row(
+                customer_id,
+                'Business',
+                customer['business_address'],
+                customer['business_suburb'],
+                customer['business_state'],
+                customer['business_postcode']
+            ))
+
+        # Add PO Box address row if available
+        if pd.notna(customer['po_address']):
+            addresses.append(create_address_row(
+                customer_id,
+                'PO Box',
+                customer['po_address'],
+                customer['po_suburb'],
+                customer['po_state'],
+                customer['po_postcode']
+            ))
+
+    return addresses
+
+
+# Generate the addresses as rows
+address_rows = generate_address_rows(customers_df)
+
+# Create a DataFrame for the addresses
+address_df = pd.DataFrame(address_rows).sort_values(by='customer_id')
+
+# Print the DataFrame to the console
+print(address_df.to_string())
 
 # Save the DataFrame to a CSV file
-csv_file_path = '/mnt/data/address_dimension_table.csv'
-df_addresses.to_csv(csv_file_path, index=False)
-
-import ace_tools as tools; tools.display_dataframe_to_user(name="Address Dimension Data", dataframe=df_addresses)
-
-csv_file_path
+# data_directory = 'data'
+# csv_file = os.path.join(data_directory, 'addresses.csv')
+# os.makedirs(data_directory, exist_ok=True)
+# address_df.to_csv(csv_file, index=False)
