@@ -36,7 +36,7 @@ def customer_open_date(dob):
     min_open_date = dob_date + relativedelta(years=1)
     return fake.date_between_dates(date_start=min_open_date, date_end=datetime.today()).strftime('%d/%m/%Y')
 
-def generate_customers_with_addresses(num_records):
+def generate_customers(num_records):
     customers = []
     for _ in range(num_records):
         dob = fake.date_of_birth(minimum_age=1, maximum_age=100).strftime('%d/%m/%Y')
@@ -103,10 +103,10 @@ def generate_customers_with_addresses(num_records):
         customers.append(customer)
     return customers
 
-customers_df = pd.DataFrame(generate_customers_with_addresses(num_customers))
+customers_df = pd.DataFrame(generate_customers(num_customers))
 print(customers_df.to_string())
 
-# data_directory = 'data'
-# csv_file = os.path.join(data_directory, 'customers_with_addresses.csv')
-# os.makedirs(data_directory, exist_ok=True)
-# customers_df.to_csv(csv_file, index=False)
+data_directory = 'data'
+csv_file = os.path.join(data_directory, 'customers.csv')
+os.makedirs(data_directory, exist_ok=True)
+customers_df.to_csv(csv_file, index=False)
