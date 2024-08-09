@@ -1,13 +1,14 @@
 from faker import Faker
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
+from datetime import date, timedelta
 import pandas as pd
 import random
 import os
 
+# Initialize Faker
 fake = Faker('en_AU')
 num_customers = 10
 
+# Mapping of postcode first digit to state and area code
 postcode_to_state = {
     '2': {'state': 'NSW', 'area_code': '02'},
     '3': {'state': 'VIC', 'area_code': '03'},
@@ -19,11 +20,6 @@ postcode_to_state = {
     '0': {'state': 'ACT', 'area_code': '02'}
 }
 
-def calculate_age(dob):
-    today = datetime.today()
-    dob = datetime.strptime(dob, '%d/%m/%Y')
-    return relativedelta(today, dob).years
-
 def get_postcode_state():
     valid_first_digits = list(postcode_to_state.keys())
     first_digit = random.choice(valid_first_digits)
@@ -31,81 +27,47 @@ def get_postcode_state():
     state_area_info = postcode_to_state.get(first_digit, {'state': 'Unknown', 'area_code': ''})
     return postcode, state_area_info['state'], state_area_info['area_code']
 
-def customer_open_date(dob):
-    dob_date = datetime.strptime(dob, '%d/%m/%Y')
-    min_open_date = dob_date + relativedelta(years=1)
-    return fake.date_between_dates(date_start=min_open_date, date_end=datetime.today()).strftime('%d/%m/%Y')
-
 def generate_customers(num_records):
     customers = []
     for _ in range(num_records):
-        dob = fake.date_of_birth(minimum_age=1, maximum_age=100).strftime('%d/%m/%Y')
-        age = calculate_age(dob)
-        gender = random.choice(['M', 'F', 'Other'])
+        dob = fake.date_of_birth(minimum_age=1, maximum_age=100)  # dob is a date object
+        age = (date.today() - dob).days // 365  # Calculate age by subtracting dob from today
+        open_date = fake.date_between_dates(date_start=dob, date_end=date.today())  # Open date between dob and today
+        deceased = random.choice(['N', 'Y'])
         postcode, state, area_code = get_postcode_state()
+        gender = random.choice(['M', 'F', 'Other'])
 
         # Determine customer type, enforce "Personal" if age < 18
         customer_type = 'Personal' if age < 18 else random.choice(['Business', 'Personal'])
-
-        # Generate residential address
-        residential_address = fake.street_address()
-        residential_suburb = fake.city()
-        residential_postcode = postcode
-        residential_state = state
-
-        # Generate business address if customer is Business
-        business_address = ''
-        business_suburb = ''
-        business_state = ''
-        business_postcode = ''
-        if customer_type == 'Business':
-            business_address = fake.street_address()
-            business_suburb = fake.city()
-            business_state = state
-            business_postcode = f"{postcode[0]}{fake.numerify(text='###')}"
-
-        # Generate PO Box address
-        po_address = ''
-        po_suburb = ''
-        po_state = ''
-        po_postcode = ''
-        if random.choice([True, False]):  # Randomly decide if there's a PO Box
-            po_address = f"PO Box {fake.building_number()}"
-            po_suburb = fake.city()
-            po_state = state
-            po_postcode = f"{postcode[0]}{fake.numerify(text='###')}"
 
         customer = {
             'customer_id': 'CUST-' + fake.uuid4(),
             'customer_type': customer_type,
             'first_name': fake.first_name_male() if gender == 'M' else fake.first_name_female() if gender == 'F' else fake.first_name(),
             'surname': fake.last_name(),
-            'dob': dob,
+            'dob': dob.strftime('%d/%m/%Y'),
             'customer_age': age,
-            'deceased_indicator': random.choice(['Y', 'N']),
+            'deceased_indicator': deceased,
             'gender': gender,
             'res_phone': f"{area_code} {fake.numerify(text='#### ####')}",
             'bus_phone': f"{area_code} {fake.numerify(text='#### ####')}" if customer_type == 'Business' else '',
-            'customer_open_date': customer_open_date(dob),
-            'residential_address': residential_address,
-            'residential_suburb': residential_suburb,
-            'residential_state': residential_state,
-            'residential_postcode': residential_postcode,
-            'business_address': business_address,
-            'business_suburb': business_suburb,
-            'business_state': business_state,
-            'business_postcode': business_postcode,
-            'po_address': po_address,
-            'po_suburb': po_suburb,
-            'po_state': po_state,
-            'po_postcode': po_postcode
+            'customer_open_date': open_date.strftime('%d/%m/%Y'),
+            'customer_close_date': customer_close_date,
+            'residential_address': fake.street_address(),
+            'residential_suburb': fake.city(),
+            'residential_state': state,
+            'residential_postcode': postcode,
         }
         customers.append(customer)
     return customers
 
+# Generate the customers list
 customers_df = pd.DataFrame(generate_customers(num_customers))
+
+# Print the DataFrame to the terminal
 print(customers_df.to_string())
 
+# Save the DataFrame to a CSV file
 data_directory = 'data'
 csv_file = os.path.join(data_directory, 'customers.csv')
 os.makedirs(data_directory, exist_ok=True)
