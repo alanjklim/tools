@@ -1,0 +1,32 @@
+#!/bin/bash
+
+for f in *.mp4; do
+  [ -f "$f" ] || continue
+  
+  # Get base without .mp4
+  base="${f%.mp4}"
+  
+  # Replace _ with space, collapse multiple spaces, trim
+  new_base=$(echo "$base" | sed 's/_/ /g' | tr -s ' ' | sed 's/^ *//;s/ *$//')
+  
+  # Title case: capitalize first letter of each word
+  new_base=$(echo "$new_base" | awk '{
+    for(i=1; i<=NF; i++) {
+      if (length($i) > 0) {
+        $i = toupper(substr($i,1,1)) tolower(substr($i,2))
+      }
+    }
+    print
+  }')
+  
+  new="${new_base}.mp4"
+  
+  # Skip if no change
+  [ "$f" = "$new" ] && continue
+  
+  # Show and rename
+  echo "Renaming:"
+  echo "  $f"
+  echo "→ $new"
+  mv -v "$f" "$new"
+done
